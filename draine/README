@@ -1,0 +1,7 @@
+Scattering Properties of Carbonaceous-Silicate Dust Mixtures
+
+Polarisation properties obtained from Bruce Draine's homepage.  The script
+parsecallscat.pl is used to parse the files and output a format that can
+more easily be read by the C routines in draine.c in the parent directory.
+
+http://www.astro.princeton.edu/~draine/dust/scat.html
