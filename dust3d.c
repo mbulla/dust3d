@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 	double path_inside;
 	double tmin=0,tmax=1e3;//e3;
 	int dobin=0,thetabin,totbin,bin_index,break_inn;
-	double step_costh,obs_resol,sn_dust_dphi,dust_obs_dphi,norm_factor;//z,D
+	double step_costh,dOmega_source,dOmega_collect,norm_factor;//z,D
 	unsigned short *nscatter=NULL,save_pkt_info=0,savescatter=0,saveangles=0,savefirstangle=0;
 	scatext *draine, *is_draine;
 	char filename[128];
@@ -70,8 +70,8 @@ int main(int argc, char *argv[]) {
 	is = 0; // = 1 if you want to switch IS dust on
 
 	// ------------- Input parameters ------------- 
-	nph = 5e8;
-	ebv = 0.5;	
+	nph = 5e7;
+	ebv = 1.5;	
 	if (is == 1) ebv_is = 0.3;
 	else ebv_is = 0.0 ;
 
@@ -79,15 +79,10 @@ int main(int argc, char *argv[]) {
   	dusttype = "MW3";
 	if (is == 1) is_dusttype = "MW3";
 
-	obs_resol = 1 * 60 * 60 * ARCSEC_TO_RAD;
-	//D = 3.5e6 * PC_TO_CM ;
-	//z = 0.01 * PC_TO_CM ;
-
-	// These angles define the dust size as seen by either the SN or the observer 
-	// They are relevant to the source, tau_to_s and escape functions (see notes 23-25/01/17)
-	sn_dust_dphi = PI / 2.;//atan( tan(obs_resol) * ( D / z - 1 ) ) ;	
-	dust_obs_dphi = obs_resol; //1 * 3600 * ARCSEC_TO_RAD ;
-
+	// See notes 18/08/17
+	dOmega_source = 4 * PI ; 
+	dOmega_collect = 4 * PI ;	
+	
     // Geometry
     rout = 1000.0;
     rinn = 0.95;
@@ -145,10 +140,9 @@ int main(int argc, char *argv[]) {
     	maxlambda = V_eff;
   	}
 
-	// Normalization factor (see notes 25/01/17)
-	if (sn_dust_dphi > dust_obs_dphi ) norm_factor = sin(dust_obs_dphi) / sin(sn_dust_dphi) * dust_obs_dphi / (2 * sn_dust_dphi) ;
-	else norm_factor = 1 / 2. ;
-	
+	// Normalization factor (see notes 18/08/17)
+	norm_factor =  dOmega_collect / dOmega_source ;
+
 	// Initialize the scattering, extinction, albedo table
 	draine = NULL;
 	draine = init_draine_extscat(dusttype,minlambda,maxlambda,dustresol,&nwavel);
@@ -183,13 +177,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Packet info file
-	//if (is == 1) snprintf(filename,sizeof filename,"runs/2014J/packets_rinn%g_%s_ebv%g_%s_ebvis%g_z%g_D%g_resol%g_ratio%.0e_Nph%.0e.out"
-	//	,rinn/rout,dusttype,ebv,is_dusttype,ebv_is,z/PC_TO_CM,D/PC_TO_CM,obs_resol/ARCSEC_TO_RAD,axis_ratio,(double) nph);   
-    //else snprintf(filename,sizeof filename,"runs/2014J/packets_%s_rinn%g_ebv%g_z%g_D%g_resol%g_ratio%.0e_Nph%.0e.out"
-	//	,dusttype,rinn/rout,ebv,z/PC_TO_CM,D/PC_TO_CM,obs_resol/ARCSEC_TO_RAD,axis_ratio,(double) nph);
-
-	snprintf(filename,sizeof filename,"runs/packets_%s_rinn%g_ebv%g_resol%g_ratio%.0e_Nph%.0e_run1.out"
-		,dusttype,rinn/rout,ebv,obs_resol/ARCSEC_TO_RAD,axis_ratio,(double) nph);   
+	snprintf(filename,sizeof filename,"work/06-sample/runs/packets_%s_rinn%g_ratio%g_ebv%g_dOmsource%gpi_dOmcoll%gpi_Nph%.0e_BVonly.out"
+		,dusttype,rinn/rout,axis_ratio,ebv,dOmega_source/PI,dOmega_collect/PI,(double) nph);   
 
 	//snprintf(filename,sizeof filename,"test.out");   
 
@@ -214,7 +203,7 @@ int main(int argc, char *argv[]) {
 	fprintf(packet_info,"%g \t\t # Binning factor \n",norm_factor);
 	//fprintf(packet_info,"%g \t\t # D \n",D);
 	//fprintf(packet_info,"%g \t\t # z \n",z);
-	fprintf(packet_info,"%g \t\t # resol \n",obs_resol);
+	fprintf(packet_info,"%g \t\t # dOmega_collect \n",dOmega_collect);
 
 
 	// Find which indices correspond to B and V filters
@@ -367,7 +356,7 @@ int main(int argc, char *argv[]) {
 			dir_angles[1] = 0.0;
 
 			// Generate packet
-			source(&sn_dust_dphi,axis_inn,x,ndir,xinn_DLOS);
+			source(&dOmega_source,axis_inn,x,ndir,xinn_DLOS);
 
 			//theta0 = acos( norm_plus_dot(x,xinn_DLOS) );
 
@@ -382,7 +371,7 @@ int main(int argc, char *argv[]) {
 				// Generate random optical depth and calculate path length 
 				tau = - log( 1 - gsl_rng_uniform(rng) );
 
-				s_tau = tau_to_s(x,xinn_DLOS,ndir,&rinn,&rout,&tau,&scatdust[iwave],&absdust[iwave],&sn_dust_dphi) ;
+				s_tau = tau_to_s(x,xinn_DLOS,ndir,&rinn,&rout,&tau,&scatdust[iwave],&absdust[iwave],&dOmega_source) ;
 				//s_tau = tau / ( 1. / absdust[iwave] + 1. / scatdust[iwave] );
 
 				// Move packet to the new position
@@ -411,8 +400,8 @@ int main(int argc, char *argv[]) {
 						escape(xinn_DLOS,x,pos_angles) ;
 						escape(xinn_DLOS,ndir,dir_angles) ;
 
-						if ( pos_angles[0] <= sn_dust_dphi && pos_angles[1] <= sn_dust_dphi 
-							&& dir_angles[0] <= dust_obs_dphi && dir_angles[1] <= dust_obs_dphi ) { 
+						if ( pos_angles[0] <= dOmega_source / 4. && pos_angles[1] <= dOmega_source / 4. 
+							&& dir_angles[0] <= dOmega_collect / 4. && dir_angles[1] <= dOmega_collect / 4. ) { 
 
 							if ( path/rout>=tmin && path/rout<=tmax ) {
 					    		sum_unsc_avg[iwave] += 1 ;
@@ -462,8 +451,8 @@ int main(int argc, char *argv[]) {
 						escape(xinn_DLOS,x,pos_angles) ;
 						escape(xinn_DLOS,ndir,dir_angles) ;
 
-						if ( pos_angles[0] <= sn_dust_dphi && pos_angles[1] <= sn_dust_dphi 
-							&& dir_angles[0] <= dust_obs_dphi && dir_angles[1] <= dust_obs_dphi ) { 
+						if ( pos_angles[0] <= dOmega_source / 4. && pos_angles[1] <= dOmega_source / 4. 
+							&& dir_angles[0] <= dOmega_collect / 4. && dir_angles[1] <= dOmega_collect / 4. ) { 
 
 				    		if ( path/rout>=tmin && path/rout<=tmax ) {
  								
@@ -562,8 +551,8 @@ int main(int argc, char *argv[]) {
 						escape(xinn_DLOS,x,pos_angles) ;
 						escape(xinn_DLOS,ndir,dir_angles) ;
 
-						if ( pos_angles[0] <= sn_dust_dphi && pos_angles[1] <= sn_dust_dphi 
-							&& dir_angles[0] <= dust_obs_dphi && dir_angles[1] <= dust_obs_dphi ) { 
+						if ( pos_angles[0] <= dOmega_source / 4. && pos_angles[1] <= dOmega_source / 4. 
+							&& dir_angles[0] <= dOmega_collect / 4. && dir_angles[1] <= dOmega_collect / 4. ) { 
 
 				    		if ( path/rout>=tmin && path/rout<=tmax ) {
  								
@@ -737,8 +726,8 @@ int main(int argc, char *argv[]) {
 						escape(xinn_DLOS,x,pos_angles) ;
 						escape(xinn_DLOS,ndir,dir_angles) ;
 
-						if ( pos_angles[0] <= sn_dust_dphi && pos_angles[1] <= sn_dust_dphi 
-							&& dir_angles[0] <= dust_obs_dphi && dir_angles[1] <= dust_obs_dphi ) { 
+						if ( pos_angles[0] <= dOmega_source / 4. && pos_angles[1] <= dOmega_source / 4. 
+							&& dir_angles[0] <= dOmega_collect / 4. && dir_angles[1] <= dOmega_collect / 4. ) {  
 
 				    		if ( path/rout>=tmin && path/rout<=tmax ) {
  								
@@ -863,11 +852,19 @@ int main(int argc, char *argv[]) {
 
 				if (fractime[iphot]>0) {
 
-					if (is == 1) fprintf(packet_info,"%g %g %d %g %g %g %g %g \n",
-					draine[iwave].lambda,fractime[iphot],nscatter[iphot],tau_is[iwave],pos_angles[0],pos_angles[1],dir_angles[0],dir_angles[1]);
+					if (is == 1) {
+						//fprintf(packet_info,"%g %g %d %g %g %g %g %g \n",
+						//	draine[iwave].lambda,fractime[iphot],nscatter[iphot],tau_is[iwave],pos_angles[0],pos_angles[1],dir_angles[0],dir_angles[1]);
+						fprintf(packet_info,"%g %g %d %g \n",
+							draine[iwave].lambda,fractime[iphot],nscatter[iphot],tau_is[iwave]);
+					}
 
-					else fprintf(packet_info,"%g %g %d %g %g %g %g \n",
-					draine[iwave].lambda,fractime[iphot],nscatter[iphot],pos_angles[0],pos_angles[1],dir_angles[0],dir_angles[1]);
+					else {
+						//fprintf(packet_info,"%g %g %d %g %g %g %g \n",
+						//	draine[iwave].lambda,fractime[iphot],nscatter[iphot],pos_angles[0],pos_angles[1],dir_angles[0],dir_angles[1]);
+						fprintf(packet_info,"%g %g %d \n",
+							draine[iwave].lambda,fractime[iphot],nscatter[iphot]);
+					}
 
 				}
 			}
@@ -914,11 +911,17 @@ int main(int argc, char *argv[]) {
 	// ------------------------------------------------
 
 
-	scstest = fopen("test_scattering_LMC_CS.out","w");
-	ccstest = fopen("test_color_LMC_CS.out","w");     // Output file for CS dust
-	cistest = fopen("test_color_LMC_DLOS.out","w");     // Output for IS sanity
+	int print_flag = 0 ;
+	
+	if (print_flag == 1) {
 
-	fprintf(scstest,"EBV lambda tau_s tau_a albedo costhe time\n");
+		scstest = fopen("test_scattering_LMC_CS.out","w");
+		ccstest = fopen("test_color_LMC_CS.out","w");     // Output file for CS dust
+		cistest = fopen("test_color_LMC_DLOS.out","w");     // Output for IS sanity
+
+		fprintf(scstest,"EBV lambda tau_s tau_a albedo costhe time\n");
+	}
+	
 
 	for (k=nwavel-1; k>=0; k--) {
 
@@ -930,7 +933,7 @@ int main(int argc, char *argv[]) {
 		a_x_abs_avg[k] = -2.5*log10(sum_abs_avg[k]/((double) nph ));
 		a_x_ins_avg[k] = -2.5*log10(sum_ins_avg[k]/((double) nph ));
 		
-		fprintf(scstest,"%10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f\n",
+		if (print_flag == 1) fprintf(scstest,"%10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f\n",
 				ebv_cs,draine[k].lambda,rout/scatdust[k],rout/absdust[k],
 				draine[k].albedo,draine[k].cost,avt[k]);
 
@@ -945,54 +948,59 @@ int main(int argc, char *argv[]) {
 	printf("IS: E(B-V)_IS = %.2f, RV_IS = %.2f \n",ebv_is,a_x_is_avg[V_i]/ebv_is);
 	printf("CS+IS: E(B-V)_TOT = %.2f (%.2f), RV_TOT = %.2f \n",ebv_tot,ebv_tot_err,a_x_tot_avg[V_i]/ebv_tot);
 	
-	fprintf(ccstest,"# Summary of colors \n");
-	fprintf(ccstest,"# E(B-V) = %6.3f\n# R_V = %6.3f\n#\n",ebv_cs,a_x_cs_avg[V_i]/ebv_cs);
-	fprintf(ccstest,"# lambda (microns) :\n# A_X (mag):\n");
+	if (print_flag == 1) {
 
-	fprintf(cistest,"# Summary of colors \n");
-	fprintf(cistest,"# E(B-V) = %6.3f\n# R_V = %6.3f\n#\n",ebv_unsc,a_x_unsc_avg[V_i]/ebv_unsc);
-	fprintf(cistest,"# lambda (microns) :\n# A_X (mag):\n");
+		fprintf(ccstest,"# Summary of colors \n");
+		fprintf(ccstest,"# E(B-V) = %6.3f\n# R_V = %6.3f\n#\n",ebv_cs,a_x_cs_avg[V_i]/ebv_cs);
+		fprintf(ccstest,"# lambda (microns) :\n# A_X (mag):\n");
 
-	for (k=nwavel-1; k>=0; k--) {
+		fprintf(cistest,"# Summary of colors \n");
+		fprintf(cistest,"# E(B-V) = %6.3f\n# R_V = %6.3f\n#\n",ebv_unsc,a_x_unsc_avg[V_i]/ebv_unsc);
+		fprintf(cistest,"# lambda (microns) :\n# A_X (mag):\n");
 
-		fprintf(ccstest,"%6.4f %6.3f %6.3f %6.3f %6.3f\n",draine[k].lambda,a_x_cs_avg[k],a_x_away_avg[k],a_x_abs_avg[k],a_x_ins_avg[k]);
-		fprintf(cistest,"%6.4f %6.3f\n",draine[k].lambda,a_x_unsc_avg[k]);
 
-	}
-	
-
-	for (i=0;i<totbin;i++) {
-		
 		for (k=nwavel-1; k>=0; k--) {
-			
-			a_x_cs[i*nwavel + k] = -2.5*log10(sum_cs[i*nwavel + k]/((double) nph * step_costh/2. ));
-			a_x_tot[i*nwavel + k] = -2.5*log10(sum_cs[i*nwavel + k] * exp(-tau_is[k])/((double) nph * step_costh/2. ));
-			a_x_unsc[i*nwavel + k] = -2.5*log10(sum_unsc[i*nwavel + k]/((double) nph * step_costh/2. ));
-			a_x_is[i*nwavel + k] = -2.5*log10( exp(-tau_is[k]) );
-			a_x_away[i*nwavel + k] = -2.5*log10(sum_away[i*nwavel + k]/((double) nph * step_costh/2. ));
-			a_x_abs[i*nwavel + k] = -2.5*log10(sum_abs[i*nwavel + k]/((double) nph * step_costh/2. ));
-			a_x_ins[i*nwavel + k] = -2.5*log10(sum_abs[i*nwavel + k]/((double) nph * step_costh/2. ));
-			
-			fprintf(ccstest,"%6.4f %6.3f %6.3f %6.3f %6.3f\n",draine[k].lambda,a_x_cs[i*nwavel + k],a_x_away[i*nwavel + k],a_x_abs[i*nwavel + k],a_x_ins[i*nwavel + k]);
-			fprintf(cistest,"%6.4f %6.3f\n",draine[k].lambda,a_x_unsc[i*nwavel + k]);
 
-			//printf("%d %d\n",sum_cs_avg[i*nwavel + k],sum_cs[i*nwavel + k]);
-			//if (i==0) printf("%d %g \n",sum_cs[i*nwavel+k],(double) nph * step_costh/2.);
-			//if (k==0) printf("%d %g \n",sum_cs[i*nwavel+k],(double) nph * step_costh/2.);
+			fprintf(ccstest,"%6.4f %6.3f %6.3f %6.3f %6.3f\n",draine[k].lambda,a_x_cs_avg[k],a_x_away_avg[k],a_x_abs_avg[k],a_x_ins_avg[k]);
+			fprintf(cistest,"%6.4f %6.3f\n",draine[k].lambda,a_x_unsc_avg[k]);
 
 		}
+		
+
+
+		for (i=0;i<totbin;i++) {
+			
+			for (k=nwavel-1; k>=0; k--) {
+				
+				a_x_cs[i*nwavel + k] = -2.5*log10(sum_cs[i*nwavel + k]/((double) nph * step_costh/2. ));
+				a_x_tot[i*nwavel + k] = -2.5*log10(sum_cs[i*nwavel + k] * exp(-tau_is[k])/((double) nph * step_costh/2. ));
+				a_x_unsc[i*nwavel + k] = -2.5*log10(sum_unsc[i*nwavel + k]/((double) nph * step_costh/2. ));
+				a_x_is[i*nwavel + k] = -2.5*log10( exp(-tau_is[k]) );
+				a_x_away[i*nwavel + k] = -2.5*log10(sum_away[i*nwavel + k]/((double) nph * step_costh/2. ));
+				a_x_abs[i*nwavel + k] = -2.5*log10(sum_abs[i*nwavel + k]/((double) nph * step_costh/2. ));
+				a_x_ins[i*nwavel + k] = -2.5*log10(sum_abs[i*nwavel + k]/((double) nph * step_costh/2. ));
+				
+				fprintf(ccstest,"%6.4f %6.3f %6.3f %6.3f %6.3f\n",draine[k].lambda,a_x_cs[i*nwavel + k],a_x_away[i*nwavel + k],a_x_abs[i*nwavel + k],a_x_ins[i*nwavel + k]);
+				fprintf(cistest,"%6.4f %6.3f\n",draine[k].lambda,a_x_unsc[i*nwavel + k]);
+
+				//printf("%d %d\n",sum_cs_avg[i*nwavel + k],sum_cs[i*nwavel + k]);
+				//if (i==0) printf("%d %g \n",sum_cs[i*nwavel+k],(double) nph * step_costh/2.);
+				//if (k==0) printf("%d %g \n",sum_cs[i*nwavel+k],(double) nph * step_costh/2.);
+
+			}
 
 
 
-	} 
-	
-	fprintf(ccstest,"\n");
-	fprintf(cistest,"\n");
-	
-	fclose(ccstest);
-	fclose(cistest);
-	fclose(scstest);
+		} 
+		
+		fprintf(ccstest,"\n");
+		fprintf(cistest,"\n");
+		
+		fclose(ccstest);
+		fclose(cistest);
+		fclose(scstest);
 
+	}
 
 	//fprintf(packet_info,"%g \t\t # CS E(B-V) \n",ebv_cs);
 	//fprintf(packet_info,"%g \t\t # CS RV \n",a_x_cs_avg[V_i]/ebv_cs);

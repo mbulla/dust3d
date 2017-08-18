@@ -35,7 +35,8 @@ scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
 	float twavel, talbedo, tcost, tC_ext, tabs_K, tcos2t;
 
 	// Variables if you want to select only U, B, V, R and I
-	double eff_wave[5],diff[5];
+	int Nwave = 2;
+	double eff_wave[2],diff[2];
 	int j;
 
 	scatext *scatextlist = NULL;
@@ -128,13 +129,13 @@ scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
 
 				// Select only U, B, V, R and I
 				
-				*nwavel = 5;
+				*nwavel = Nwave;
 
-				eff_wave[0] = 0.365;// 0.442;//0.365;
-				eff_wave[1] = 0.442;// 0.547;//0.442;
-				eff_wave[2] = 0.546;// 1.22; //0.546;
-				eff_wave[3] = 0.658;// 1.63; //0.658;
-				eff_wave[4] = 0.806;// 2.19; //0.806;
+				//eff_wave[0] = 0.365;// 0.442;//0.365;
+				eff_wave[0] = 0.442;// 0.547;//0.442;
+				eff_wave[1] = 0.546;// 1.22; //0.546;
+				//eff_wave[3] = 0.658;// 1.63; //0.658;
+				//eff_wave[4] = 0.806;// 2.19; //0.806;
 						
 				if (twavel >= minlambda && twavel <= maxlambda && (i++ % resolution) == 0) {
 
@@ -142,9 +143,9 @@ scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
 
 						diff[0] = 1e10;
 						diff[1] = 1e10;
-						diff[2] = 1e10;
-						diff[3] = 1e10;
-						diff[4] = 1e10;
+						//diff[2] = 1e10;
+						//diff[3] = 1e10;
+						//diff[4] = 1e10;
 					}
 
 					if ((*nwavel) == veclen) {  // Increase size of vector

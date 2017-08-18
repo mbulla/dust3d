@@ -6,9 +6,9 @@ const gsl_rng *rng;
 
 double dist_to_sphere(double *rsph, double *x, double *ndir);
 double dist_to_ellipsoid(double *axis, double *x, double *ndir);
-void source(double *sn_dust_dphi, double *axis, double *x, double *ndir, double *xinn_DLOS);
+void source(double *dOmega_source, double *axis, double *x, double *ndir, double *xinn_DLOS);
 double finalpath(int *istep, double *x, double *ndir, double *axis_out);
-double tau_to_s(double *x, double *xfirst, double *ndir, double *rinn, double *rout, double *tau, double *scatdust, double *absdust, double *sn_dust_dphi);
+double tau_to_s(double *x, double *xfirst, double *ndir, double *rinn, double *rout, double *tau, double *scatdust, double *absdust, double *dOmega_source);
 void escape(double *xinn_DLOS, double *vec, double *angles);
 int check(double *x, double *axis);
 double cthenyey_greenstein(double g);

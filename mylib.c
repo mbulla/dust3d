@@ -53,9 +53,9 @@ double dist_to_ellipsoid(double *axis, double *x0, double *ndir) {
 
 
 // Source emission
-void source(double *sn_dust_dphi, double *axis, double *x, double *ndir, double *xinn_DLOS) {
+void source(double *dOmega_source, double *axis, double *x, double *ndir, double *xinn_DLOS) {
 
-	double u,v,s,rfinal,nobs[3],dcosth;
+	double u,v,s,rfinal,nobs[3],dphi,dcosth;
 	//double K,sint2;
 
 	// -------------- POSITION --------------
@@ -70,14 +70,15 @@ void source(double *sn_dust_dphi, double *axis, double *x, double *ndir, double 
     xinn_DLOS[1] = 0;
     xinn_DLOS[2] = 0;
 
-	// -------------- DIRECTION  (see notes 23-25/01/17) -------------
+	// -------------- DIRECTION  (see notes 23-25/01/17 and 18/08/17) -------------
 	
-	dcosth = sin( *sn_dust_dphi );
+	dphi = ( *dOmega_source / 8. ) ;
+	dcosth = sin( dphi );
 
 	// Random direction
     u = 2 * dcosth * gsl_rng_uniform(rng) - dcosth ;
-	if (gsl_rng_uniform(rng)<0.5) v = 2 * (*sn_dust_dphi) * gsl_rng_uniform(rng) - (*sn_dust_dphi) ;
-	else v = PI + 2 * (*sn_dust_dphi) * gsl_rng_uniform(rng) - (*sn_dust_dphi) ;
+	if (gsl_rng_uniform(rng)<0.5) v = 2 * dphi * gsl_rng_uniform(rng) - dphi ;
+	else v = PI + 2 * dphi * gsl_rng_uniform(rng) - dphi ;
 
 	//u = 0;
 	//v = PI/2.;
@@ -170,14 +171,14 @@ double finalpath(int *istep, double *x, double *ndir, double *axis_out) {
 
 // Calculate the continuum optical depth s taking into account different regions with different densities
 
-double tau_to_s(double *x, double *xinn_DLOS, double *ndir, double *rinn, double *rout, double *tau, double *scatdust, double *absdust, double *sn_dust_dphi) {
+double tau_to_s(double *x, double *xinn_DLOS, double *ndir, double *rinn, double *rout, double *tau, double *scatdust, double *absdust, double *dOmega_source) {
 
 	double s=0,eps;
 	double tautmp=0,xt[3];
 	double angles[2];
 
 	double dens_ratio = 1;
-	double ang_dens = (*sn_dust_dphi) ;
+	double ang_dens = (*dOmega_source) ;
 
 	xt[0]=x[0];   xt[1]=x[1];   xt[2]=x[2];
 
