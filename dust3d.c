@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 	rng = gsl_rng_alloc(gsl_rng_ran3);
 	gsl_rng_set (rng, seed);
 
-	const float B_eff = 0.4405, V_eff = 0.547; // Effective wavelength (in microns)
+	const float B_eff = 0.442, V_eff = 0.546; // Effective wavelength (in microns)
 	const double flux2mag = 1.085736; 	
 	const int nmax=50000;             // Maximum number of interactions per photon
 	
@@ -70,8 +70,8 @@ int main(int argc, char *argv[]) {
 	is = 0; // = 1 if you want to switch IS dust on
 
 	// ------------- Input parameters ------------- 
-	nph = 5e7;
-	ebv = 1.5;	
+	nph = 1e7;
+	ebv = 1.0;	
 	if (is == 1) ebv_is = 0.3;
 	else ebv_is = 0.0 ;
 
@@ -121,8 +121,10 @@ int main(int argc, char *argv[]) {
 	}
 	
     // Wavelength range (0.17-2.5 for SN2011fe template)
-    minlambda = 0.25;//0.17;
-    maxlambda = 0.85;//2.5; 
+    
+    minlambda = 0.25;
+    maxlambda = 0.85;
+
     if (minlambda < 0.0001 || minlambda > 9.9999) {
     	fprintf(stderr,"Warning: wavelengths < 0.0001 or > 9.9999 mu not supported!\n");
     	minlambda = 0.0001;
@@ -175,36 +177,6 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		}
 	}
-
-	// Packet info file
-	snprintf(filename,sizeof filename,"work/06-sample/runs/packets_%s_rinn%g_ratio%g_ebv%g_dOmsource%gpi_dOmcoll%gpi_Nph%.0e_BVonly.out"
-		,dusttype,rinn/rout,axis_ratio,ebv,dOmega_source/PI,dOmega_collect/PI,(double) nph);   
-
-	//snprintf(filename,sizeof filename,"test.out");   
-
-    packet_info=fopen(filename,"a+");
-    fseek(packet_info, 0, SEEK_END);
-    if (ftell(packet_info) != 0) {
-
-    	printf("\n%s already exists!!\n\n",filename);
-    	printf("Should I overwrite this [Y/N]? ");
-	    scanf("%s",&str);
-		if (strcmp(&str,"Y") != 0) return -1;
-		packet_info=fopen(filename,"w");
-	}
-
-	printf("\nOutput file: %s \n\n",filename);
-	
-	fprintf(packet_info,"%s \t\t # Dust type\n",dusttype);
-	fprintf(packet_info,"%ld \t\t # Number of packets\n",nph);
-	fprintf(packet_info,"%d \t\t # Number of wavelengths\n",nwavel);
-	fprintf(packet_info,"%g %g \t # Min and max wavelengths\n",minlambda,maxlambda);
-	fprintf(packet_info,"%g \t\t # Input E(B-V)\n",ebv);
-	fprintf(packet_info,"%g \t\t # Binning factor \n",norm_factor);
-	//fprintf(packet_info,"%g \t\t # D \n",D);
-	//fprintf(packet_info,"%g \t\t # z \n",z);
-	fprintf(packet_info,"%g \t\t # dOmega_collect \n",dOmega_collect);
-
 
 	// Find which indices correspond to B and V filters
 	find_draine_lambda_idx(draine,nwavel,B_eff,&B_i);
@@ -296,7 +268,37 @@ int main(int argc, char *argv[]) {
 	// ------------------------------------------------
 
 	for (iwave=0;iwave<nwavel;iwave++) {   // loop over wavelengths
-	
+
+		// Packet info file
+		snprintf(filename,sizeof filename,"work/06-sample/runs/packets_%s_rinn%g_ratio%g_ebv%g_dOmsource%gpi_dOmcoll%gpi_Nph%.0e_%s.out"
+			,dusttype,rinn/rout,axis_ratio,ebv,dOmega_source/PI,dOmega_collect/PI,(double) nph,draine[iwave].bandid);   
+
+		//snprintf(filename,sizeof filename,"test.out");   
+
+	    packet_info=fopen(filename,"a+");
+	    fseek(packet_info, 0, SEEK_END);
+	    if (ftell(packet_info) != 0) {
+
+	    	printf("\n%s already exists!!\n\n",filename);
+	    	printf("Should I overwrite this [Y/N]? ");
+		    scanf("%s",&str);
+			if (strcmp(&str,"Y") != 0) return -1;
+			packet_info=fopen(filename,"w");
+		}
+
+		printf("\nOutput file: %s \n\n",filename);
+		
+		fprintf(packet_info,"%s \t\t # Dust type\n",dusttype);
+		fprintf(packet_info,"%ld \t\t # Number of packets\n",nph);
+		fprintf(packet_info,"%d \t\t # Number of wavelengths\n",nwavel);
+		fprintf(packet_info,"%g %g \t # Min and max wavelengths\n",minlambda,maxlambda);
+		fprintf(packet_info,"%g \t\t # Input E(B-V)\n",ebv);
+		fprintf(packet_info,"%g \t\t # Binning factor \n",norm_factor);
+		//fprintf(packet_info,"%g \t\t # D \n",D);
+		//fprintf(packet_info,"%g \t\t # z \n",z);
+		fprintf(packet_info,"%g \t\t # dOmega_collect \n",dOmega_collect);
+
+
 		// Initialize
 		
 		for (i=0;i<totbin;i++) {
@@ -1000,7 +1002,6 @@ int main(int argc, char *argv[]) {
 		fclose(cistest);
 		fclose(scstest);
 
-	}
 
 	//fprintf(packet_info,"%g \t\t # CS E(B-V) \n",ebv_cs);
 	//fprintf(packet_info,"%g \t\t # CS RV \n",a_x_cs_avg[V_i]/ebv_cs);
@@ -1008,6 +1009,8 @@ int main(int argc, char *argv[]) {
 	//fprintf(packet_info,"%g \t\t # IS RV \n",a_x_unsc_avg[V_i]/ebv_unsc);
 
 	fclose(packet_info);
+
+	}
 
 	// ------------------------------------------------
 	// -------- FREE OUT THE MEMORY ALLOCATED ---------

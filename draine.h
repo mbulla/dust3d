@@ -34,11 +34,13 @@ typedef struct {
 	float abs_k;
 	float cost;
 	float cos2t; 
+  char bandid[20]; 
+
 } scatext;
 
 // Read extinction and scattering table
 //
-scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
+scatext* init_draine_extscat(char *dusttype, float minlambda, float maxlambda,
 			unsigned int resolution, unsigned int *nwavel);
 void find_draine_lambda_idx(scatext *list, unsigned int len, float lambda, int *idx);
 

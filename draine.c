@@ -3,9 +3,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
+#include <gsl/gsl_rng.h>
 
 #include "draine.h"
-
+#include "mylib.h"
 
 // Read the extinction and scattering table
 
@@ -26,21 +27,34 @@ scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
 	const char *forextscatf = "bladh/opt_for.dat";
 	const char *mixextscatf = "bladh/opt_mix.dat";
 
-	FILE *f;
+	FILE *f, *fwavel;
 	unsigned int veclen = 25, i = 0;
 	
 	const unsigned int buf = 128;
 	char line[buf];
 	
 	float twavel, talbedo, tcost, tC_ext, tabs_K, tcos2t;
-
-	// Variables if you want to select only U, B, V, R and I
-	int Nwave = 2;
-	double eff_wave[2],diff[2];
-	int j;
+	float a;
+	char b;
+	int nwave_tmp,j;
 
 	scatext *scatextlist = NULL;
 	scatextlist = (scatext*) malloc(sizeof(scatext)*veclen);
+
+	// Select bands
+
+	fwavel = fopen("wavel.txt", "rt");
+	fscanf(fwavel,"%d",&nwave_tmp);
+	
+	double eff_wave[nwave_tmp],diff[nwave_tmp];
+
+	for (j=0;j<nwave_tmp;j++) {
+
+		fscanf(fwavel,"%g %s",&a,&b);
+		eff_wave[j] = a;
+
+		strcpy(scatextlist[j].bandid,&b);
+	}
 
 	// Determine dust type
 	//
@@ -68,7 +82,7 @@ scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
 	if (fname != NULL) f = fopen(fname, "rt");
 
 	if (f != NULL) {
-		*nwavel = 0;
+		(*nwavel) = 0;
 		i = 0;
 		while (fgets(line,buf,f) != NULL) {
 			if (line[0] != '#') {
@@ -101,52 +115,14 @@ scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
 					fname = NULL;
 				}
 	
-				//if (twavel >= minlambda && twavel <= maxlambda && (i++ % resolution) == 0) {
 
-				//	if ((*nwavel) == veclen) {  // Increase size of vector
-				//		veclen *= 2;
-				//		scatextlist = realloc(scatextlist,sizeof(scatext)*veclen);
-				//	}
-	
-				//	printf("%d %g \n",*nwavel,);
-	
-				//	if ((*nwavel) == veclen) {  // Increase size of vector
-				//		veclen *= 2;
-				//		scatextlist = realloc(scatextlist,sizeof(scatext)*veclen);
-				//	}
-	
-				//	scatextlist[*nwavel].lambda = twavel;
-				//	scatextlist[*nwavel].albedo = talbedo;
-				//	scatextlist[*nwavel].cost   = tcost;
-				//	scatextlist[*nwavel].c_ext  = tC_ext;
-				//	scatextlist[*nwavel].abs_k  = tabs_K;
-				//	scatextlist[*nwavel].cos2t  = tcos2t;
-	
-				//	(*nwavel)++;
-				//}
+				// Select bands
 
+				*nwavel = nwave_tmp;
 
-
-				// Select only U, B, V, R and I
-				
-				*nwavel = Nwave;
-
-				//eff_wave[0] = 0.365;// 0.442;//0.365;
-				eff_wave[0] = 0.442;// 0.547;//0.442;
-				eff_wave[1] = 0.546;// 1.22; //0.546;
-				//eff_wave[3] = 0.658;// 1.63; //0.658;
-				//eff_wave[4] = 0.806;// 2.19; //0.806;
-						
 				if (twavel >= minlambda && twavel <= maxlambda && (i++ % resolution) == 0) {
 
-					if (i==1) {
-
-						diff[0] = 1e10;
-						diff[1] = 1e10;
-						//diff[2] = 1e10;
-						//diff[3] = 1e10;
-						//diff[4] = 1e10;
-					}
+					if (i==1) for (j=0;j<(*nwavel);j++) diff[j] = 1e10;
 
 					if ((*nwavel) == veclen) {  // Increase size of vector
 						veclen *= 2;
@@ -163,7 +139,7 @@ scatext* init_draine_extscat(char *dusttype,float minlambda, float maxlambda,
 							scatextlist[j].c_ext  = tC_ext;
 							scatextlist[j].abs_k  = tabs_K;
 							scatextlist[j].cos2t  = tcos2t;
-
+							
 							diff[j] = fabs(twavel-eff_wave[j]) ;
 
 						}
