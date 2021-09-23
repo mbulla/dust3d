@@ -1,5 +1,5 @@
 3D Monte Carlo code to study the effect of dust on the observed extinction.
 
-Description of the code is found in Bulla+2017, where this is used to estimate dust locations in reddened Type Ia supernovae.
+Description of the code is found in Bulla+2018a, where this is used to estimate dust locations in reddened Type Ia supernovae.
 
 This is similar to the code described in Goobar 2008 and Amanullah & Goobar 2011 (https://github.com/rahmanamanullah/csdust), but is three-dimensional and allows for different geometries for the dust region. 
